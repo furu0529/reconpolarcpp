@@ -9,7 +9,7 @@ const double sigma8=0.811;
 const double rho0mMpc=2.7753*1e11*0.7010*0.7010;
 const double deltac=1.686;
 // map size
-const int grid = 4;
+const int grid = 8;
 const int bins = grid/2;
 const double L = 30000; // Mpc
 

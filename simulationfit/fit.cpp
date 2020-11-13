@@ -5,7 +5,7 @@ using namespace std;
 
 int main(int argc, char** argv){
   
-  clock_t start,end;
+  clock_t start,mid,end;
   int n=grid*grid*bins*2;
   cout << n;
   double kinif[n];
@@ -16,12 +16,13 @@ int main(int argc, char** argv){
     kinif[i]=1e-7;
   }
   start = clock();
+  //  cout << "  Function value = " << optimfunc( kinif, n ) << "\n";
+  //  mid = clock();
+  //  cout << "  Function value = " << optimfunc( kinif, n ) << "\n";
   nlopt_opt opt;
   opt = nlopt_create(NLOPT_LN_PRAXIS, n);
   nlopt_set_min_objective(opt, optimfuncnl, NULL);
   nlopt_set_xtol_rel(opt, 1e-5);
-  //  nlopt_set_stopval(opt, sqrt(8./27.)+1e-3);
-  // nlopt_set_stopval(opt, 1e-5);
   double minf;
   if (nlopt_optimize(opt, kinif, &minf) < 0) {
     printf("nlopt failed!\n");
@@ -30,12 +31,13 @@ else {
   r8vec_print ( n, kinif, "  Computed minimizer:" );
   //  printf("found minimum at f(%g,%g) = %0.10g\n", minf);
     }
-  //  praxis(t0,h0,n,prin,kinif,optimfunc);
+  //  praxis(t0,h0,n,prin,kinif,optimfunc);*/
   end = clock();
 
   //  r8vec_print ( n, kinif, "  Computed minimizer:" );
-  //cout << "  Function value = " << optimfunc( kinif, n ) << "\n";
+  
   printf("all:%.4f[s]\n",(double)(end-start)/CLOCKS_PER_SEC);
+  //  printf("all:%.4f[s]\n",(double)(end-mid)/CLOCKS_PER_SEC);
   complex<double> a2mrfout[5][grid][grid][grid];
   complex<double> a2mrtout[5][grid][grid][grid];
   /*complex<double> *fp;

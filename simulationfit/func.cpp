@@ -118,25 +118,19 @@ double optimfuncnl(unsigned n, const double *x, double *grad, void *my_func_data
   static complex<double> r_y2m[5][grid][grid][grid];
   static vector<double>  kt;
   static vector<double>  transf;
-  static complex<double> kinic[grid][grid][bins];
+  //static complex<double> kinic[grid][grid][bins];
   static complex<double> kinit[grid][grid][bins];
   static complex<double> a2mkf[5][grid][grid][grid];
   static complex<double> a2mkt[5][grid][grid][grid];
   static complex<double> rboxf[5][grid][grid][grid];
   static complex<double> rboxt[5][grid][grid][grid];
-  static complex<double> QUf[grid][grid][grid];
+  //  static complex<double> QUf[grid][grid][grid];
   static complex<double> QUt[grid][grid][grid];
+  static complex<double> a2m,qutemp;
+  static  double con;
   char filename[] = "cambauto/test_transfer_z0_pig.csv";
   fftw_complex *in ,*out;
   fftw_plan p;
-  
-  for(int i=0;i<grid;i++){
-    for(int j=0;j<grid;j++){
-      for(int k=0;k<bins;k++){
-	kinic[i][j][k]=x[i*grid*bins*2+j*bins*2+k*2]+x[i*grid*bins*2+j*bins*2+k*2+1]*I;
-      }
-    }
-  }
   
   if(flag == 0){
     cout << "make_initial" <<endl;
@@ -161,6 +155,7 @@ double optimfuncnl(unsigned n, const double *x, double *grad, void *my_func_data
     }
     make_trueQU::make_qu(QUt,rboxt,r_y2m);
     cout << "make_true end" <<endl;
+    con = (-4.0*M_PI)/sqrt(pow(2.0*M_PI*L,3.0));
     ofstream outputfilet("opre.dat");
     for(int M=0;M<5;M++){
       outputfilet << "true" << endl;
@@ -173,7 +168,7 @@ double optimfuncnl(unsigned n, const double *x, double *grad, void *my_func_data
   /*else{
     cout << "already make" << endl;
     }*/
-  make_trueQU::make_evoperturb(knorm,kinic,kt,transf,k_y2m,a2mkf);
+  make_trueQU::make_evoperturb_fast(knorm,x,kt,transf,k_y2m,a2mkf);
   for(int M=0;M<5;M++){
     in = (fftw_complex *)a2mkf[M];
     out =(fftw_complex *)rboxf[M];
@@ -181,20 +176,31 @@ double optimfuncnl(unsigned n, const double *x, double *grad, void *my_func_data
     fftw_execute(p);
     fftw_destroy_plan(p);
   }
-  make_trueQU::make_qu(QUf,rboxf,r_y2m);
   double funcvalue=0.0;
   for(int i=0;i<grid;i++){
     for(int j=0;j<grid;j++){
       for(int k=0;k<grid;k++){
-	//	if( (bins-i)*(bins-i) + (bins-j)*(bins-j) + (bins-k)*(bins-k) <= 2*2){
-	funcvalue = funcvalue + pow(real(QUf[i][j][k])-real(QUt[i][j][k]),2);
-	funcvalue = funcvalue + pow(imag(QUf[i][j][k])-imag(QUt[i][j][k]),2);
-	//}
+        qutemp = 0.0;
+        for(int M=0;M<5;M++){
+          a2m = rboxf[M][i][j][k]*con;
+          qutemp += a2m*r_y2m[M][i][j][k];
+        }
+	funcvalue = funcvalue + pow(real(qutemp)-real(QUt[i][j][k]),2);
+        funcvalue = funcvalue + pow(imag(qutemp)-imag(QUt[i][j][k]),2);
       }
     }
   }
-  funcvalue = funcvalue-pow(real(QUf[bins][bins][bins])-real(QUt[bins][bins][bins]),2);
-  funcvalue = funcvalue-pow(imag(QUf[bins][bins][bins])-imag(QUt[bins][bins][bins]),2); 
+  /* 中心を別計算 */
+  qutemp=0.0;
+  for(int M=0;M<5;M++){
+    a2m = rboxf[M][bins][bins][bins]*con;
+    qutemp += a2m*r_y2m[M][bins][bins][bins];
+  }
+  funcvalue = funcvalue-pow(real(qutemp)-real(QUt[bins][bins][bins]),2);
+  funcvalue = funcvalue-pow(imag(qutemp)-imag(QUt[bins][bins][bins]),2); 
+  return funcvalue;
+}
+
   /*ofstream outputfilet("fittingcheck.dat");
   for(int i=0;i<grid;i++){
     //    outputfilet << kt[i] << " ";
@@ -214,117 +220,6 @@ double optimfuncnl(unsigned n, const double *x, double *grad, void *my_func_data
     }
     }
     outputfilet.close();*/
-  return funcvalue;
-}
-
-
-double optimfunc_py(np::ndarray &a){//,np::ndarray &output){
-  //static int flag=0;
-  int N = a.shape(0);
-  double x[N];
-  auto *py = reinterpret_cast<double*>(a.get_data());
-  //auto *py_out = reinterpret_cast<double*>(output.get_data());
-  static int length[3] = {grid,grid,bins};
-  static double knorm[grid][grid][bins];
-  static double k_vec[grid][3],r_vec[grid][3];
-  static complex<double> k_y2m[5][grid][grid][grid];
-  static complex<double> r_y2m[5][grid][grid][grid];
-  static vector<double>  kt;
-  static vector<double>  transf;
-  static complex<double> kinic[grid][grid][bins];
-  static complex<double> kinit[grid][grid][bins];
-  static complex<double> a2mkf[5][grid][grid][grid];
-  static complex<double> a2mkt[5][grid][grid][grid];
-  static complex<double> rboxf[5][grid][grid][grid];
-  static complex<double> rboxt[5][grid][grid][grid];
-  static complex<double> QUf[grid][grid][grid];
-  static complex<double> QUt[grid][grid][grid];
-  char filename[] = "cambauto/test_transfer_z0.00_pig.csv";
-  fftw_complex *in ,*out;
-  fftw_plan p;
-
-  for(int i=0; i<N; i++){
-    x[i]=*(py+i);
-  }
-  
-
-   for(int i=0;i<grid;i++){
-     for(int j=0;j<grid;j++){
-       for(int k=0;k<bins;k++){
-	 kinic[i][j][k]=x[i*grid*bins*2+j*bins*2+k*2]+x[i*grid*bins*2+j*bins*2+k*2+1]*I;
-       }
-     }
-   }
-   
-   //if(flag == 0){
-     cout << "make_initial" <<endl;
-     make_ini::make_kspace(knorm,k_y2m,k_vec);
-     for(int M=0;M<5;M++){
-       use_func::set_kturn(length,k_y2m[M]);
-     }
-     make_ini::make_rspace(r_y2m,r_vec);
-     make_ini::read_transfer(filename,kt,transf);
-     kt.erase(kt.begin());
-     transf.erase(transf.begin());
-     cout << "make_true start"  <<endl;
-     make_ini::make_iniperturb(knorm,kinit);
-     make_trueQU::make_evoperturb(knorm,kinit,kt,transf,k_y2m,a2mkt);
-     for(int M=0;M<5;M++){
-       in = (fftw_complex *)a2mkt[M];
-       out =(fftw_complex *)rboxt[M];
-       p = fftw_plan_dft_3d(grid,grid,grid,in,out, FFTW_BACKWARD, FFTW_ESTIMATE);
-       fftw_execute(p);
-       fftw_destroy_plan(p);
-     }
-     make_trueQU::make_qu(QUt,rboxt,r_y2m);
-     cout << "make_true end" <<endl;
-     //flag++;
-     //}
-   /*else{
-     cout << "already make" << endl;
-     }*/
-   make_trueQU::make_evoperturb(knorm,kinic,kt,transf,k_y2m,a2mkf);
-  for(int M=0;M<5;M++){
-    in = (fftw_complex *)a2mkf[M];
-    out =(fftw_complex *)rboxf[M];
-    p = fftw_plan_dft_3d(grid,grid,grid,in,out, FFTW_BACKWARD, FFTW_ESTIMATE);
-    fftw_execute(p);
-    fftw_destroy_plan(p);
-  }
-  make_trueQU::make_qu(QUf,rboxf,r_y2m);
-  double funcvalue=0.0;
-  cout << "evaluate the funcvalue";
-  for(int i=0;i<grid;i++){
-    for(int j=0;j<grid;j++){
-      for(int k=0;k<grid;k++){
-        funcvalue = funcvalue + pow(real(QUf[i][j][k])-real(QUt[i][j][k]),2);
-        funcvalue = funcvalue + pow(imag(QUf[i][j][k])-imag(QUt[i][j][k]),2);
-	//*(py_out+i*grid*grid+j*grid+k) = real(QUf[i][j][k]);
-      }
-    }
-  }
-  funcvalue = funcvalue-pow(real(QUf[bins][bins][bins])-real(QUt[bins][bins][bins]),2);
-  funcvalue = funcvalue-pow(imag(QUf[bins][bins][bins])-imag(QUt[bins][bins][bins]),2); 
-  /*ofstream outputfilet("fittingcheck.dat");
-  for(int i=0;i<grid;i++){
-    //    outputfilet << kt[i] << " ";
-    //    outputfilet << transf[i] << endl;
-    for(int j=0;j<grid;j++){
-      for(int k=0;k<grid;k++){
-        //outputfilet << knorm[i][j][k] << " ";
-	//outputfilet << k_y2m[0][i][j][k] << endl;
-	//	outputfilet << r_y2m[1][i][j][k] << endl;
-	//	outputfilet << kinic[i][j][k] << " "; 
-	//outputfilet << a2mkf[1][i][j][k] << endl;
-	//	outputfilet << QUf[i][j][k] <<endl;
-	//        outputfilet << linearinterpmy(knorm[i][j][k],kt,transf,100) <<endl;
-      }
-    }
-  }
-  outputfilet.close();*/
-
-    return funcvalue;
-}
 
 
 void optimiresult(double x[],complex<double> (&a2mrf)[5][grid][grid][grid],complex<double> (&a2mrt)[5][grid][grid][grid]){
@@ -394,29 +289,6 @@ void optimiresult(double x[],complex<double> (&a2mrf)[5][grid][grid][grid],compl
     outputfilet << "fit:" << endl;
     outputfilet << a2mrf[M][bins][bins][bins] << endl;
   }
-}
-
-
-void plus_scalar(np::ndarray &a, double b)
-{
-  auto N = a.shape(0);
-  auto *p = reinterpret_cast<double*>(a.get_data());
-  double x[N];
-  for(auto v=p; v!=p+N; ++v){
-    int i=0;
-    *v=*v+b;
-    x[i]=*v;
-    *v=x[i]+1;
-    i++;
-  }
-
-}
-
-BOOST_PYTHON_MODULE(optim) {
-  Py_Initialize();
-  np::initialize();
-  p::def("optim", optimfunc_py);
-  p::def("plus_scalar", plus_scalar);
 }
 
 void use_func::scalar_power(double k,double &Pk) noexcept{
@@ -843,6 +715,38 @@ void make_trueQU::make_evoperturb(double knorm[grid][grid][bins],complex<double>
     for(int j=0;j<grid;j++){
       for(int k=0;k<bins;k++){
 	deltak = sqrt(2.0*M_PI*M_PI*knorm[i][j][k])*linearinterpmy(knorm[i][j][k],kt,transf,200)*kinitial[i][j][k];
+        for(int m=0;m<5;m++){
+          a2mk[m][i][j][k]=deltak;
+        }
+      }
+    }
+  }
+  for(int M=0;M<5;M++){
+    use_func::set_kturn_conj(length,a2mk[M]);
+  }
+  for(int m=0;m<5;m++){
+    for(int i=0;i<grid;i++){
+      for(int j=0;j<grid;j++){
+        for(int k=0;k<grid;k++){
+          a2mk[m][i][j][k]=k_y2m[m][i][j][k]*a2mk[m][i][j][k];
+        }
+      }
+    }
+    a2mk[m][0][0][0] = 0.0;
+  }
+}
+
+
+void make_trueQU::make_evoperturb_fast(double knorm[grid][grid][bins],const double *kinitial, vector<double>  kt,vector<double>  transf,complex<double> k_y2m[5][grid][grid][grid],complex<double>(&a2mk)[5][grid][grid][grid]){
+  complex<double> deltak,kinic;
+  double con;
+  int length[3] = {grid,grid,bins};
+  con = sqrt(2.0*M_PI*M_PI);
+  for(int i=0;i<grid;i++){
+    for(int j=0;j<grid;j++){
+      for(int k=0;k<bins;k++){
+	kinic = kinitial[i*grid*bins*2+j*bins*2+k*2]+kinitial[i*grid*bins*2+j*bins*2+k*2+1]*I;
+	deltak = con*sqrt(knorm[i][j][k])*linearinterpmy(knorm[i][j][k],kt,transf,200)*kinic;
 	for(int m=0;m<5;m++){
 	  a2mk[m][i][j][k]=deltak;
 	}
@@ -866,12 +770,14 @@ void make_trueQU::make_evoperturb(double knorm[grid][grid][bins],complex<double>
 
 void make_trueQU::make_qu(complex<double> (&QU)[grid][grid][grid],complex<double> (&rbox)[5][grid][grid][grid],complex<double>r_y2m[5][grid][grid][grid]){
   complex<double> a2m;
+  double con;
+  con = (-4.0*M_PI)/sqrt(pow(2.0*M_PI*L,3.0));
   for(int i=0;i<grid;i++){
     for(int j=0;j<grid;j++){
       for(int k=0;k<grid;k++){
 	QU[i][j][k] = 0.0;
 	for(int M=0;M<5;M++){
-	  a2m = rbox[M][i][j][k]*(-4.0*M_PI)/sqrt(pow(2.0*M_PI*L,3.0));
+	  a2m = rbox[M][i][j][k]*con;
 	  QU[i][j][k] += a2m*r_y2m[M][i][j][k];
 	}
       }

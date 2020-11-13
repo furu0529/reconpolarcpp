@@ -12,14 +12,10 @@
 #include "linearinterp.hpp"
 #include <boost/math/special_functions/spherical_harmonic.hpp>
 #include "praxis.hpp"
-#include <boost/python.hpp>
-#include <boost/python/numpy.hpp>
+
 using namespace std;
-namespace p = boost::python;
-namespace np = boost::python::numpy;
 
 double optimfunc(double x[], int n);
-double optimfunc_py(np::ndarray &a);//,np::ndarray &out);
 double optimfuncnl(unsigned n, const double *x, double *grad, void *my_func_data);
 void optimiresult(double x[],complex<double> (&a2mrf)[5][grid][grid][grid],complex<double> (&a2mrt)[5][grid][grid][grid]);
 
@@ -34,7 +30,7 @@ public:
   static void scalar_power(double k,double &Pk) noexcept;
   static inline  void spinY2m(int m,double phi,double theta,complex<double>(&spin)) noexcept;
   static void set_kturn(int length[3],complex<double> (&k_box)[grid][grid][grid]) noexcept;
-  static void set_kturn_conj(int length[3],complex<double> (&k_box)[grid][grid][grid]) noexcept;
+inline  static void set_kturn_conj(int length[3],complex<double> (&k_box)[grid][grid][grid]) noexcept;
   static double linearmy(double xi,double xi1,double yi,double yi1,double x);
   static double linearinterpmy(double x,vector<double> arr_x,vector<double>arr_y, int arr_length);
   static void writedata_1d(char name[], vector<double> yvec,int length,vector<double> vec);
@@ -58,8 +54,9 @@ class make_ini:public use_func{
 class make_trueQU:public make_ini{
 private:
 public:
-  static void make_evoperturb(double knorm[grid][grid][bins],complex<double> kinitial[grid][grid][bins],vector<double> kt,vector<double>  transf,complex<double> k_y2m[5][grid][grid][grid],complex<double>(&a2mk)[5][grid][grid][grid]);
-  static void make_qu(complex<double> (&QU)[grid][grid][grid],complex<double> (&rbox)[5][grid][grid][grid],complex<double> r_y2m[5][grid][grid][grid]);
+inline static void make_evoperturb(double knorm[grid][grid][bins],complex<double> kinitial[grid][grid][bins] ,vector<double> kt,vector<double>  transf,complex<double> k_y2m[5][grid][grid][grid],complex<double>(&a2mk)[5][grid][grid][grid]);
+inline static void make_evoperturb_fast(double knorm[grid][grid][bins],const double *kinitial ,vector<double> kt,vector<double>  transf,complex<double> k_y2m[5][grid][grid][grid],complex<double>(&a2mk)[5][grid][grid][grid]);
+inline  static void make_qu(complex<double> (&QU)[grid][grid][grid],complex<double> (&rbox)[5][grid][grid][grid],complex<double> r_y2m[5][grid][grid][grid]);
 };
     
 #endif // _FUNC_HPP_
